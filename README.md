@@ -1,6 +1,5 @@
 # React + Vite + Hono + Cloudflare Workers
 
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/cloudflare/templates/tree/main/vite-react-template)
 
 This template provides a minimal setup for building a React application with TypeScript and Vite, designed to run on Cloudflare Workers. It features hot module replacement, ESLint integration, and the flexibility of Workers deployments.
 
@@ -34,7 +33,7 @@ Get started in minutes with local development or deploy directly via the Cloudfl
 To start a new project with this template, run:
 
 ```bash
-npm create cloudflare@latest -- --template=cloudflare/templates/vite-react-template
+pnpm create cloudflare@latest my-hono-app --template=cloudflare/templates/vite-react-template
 ```
 
 A live deployment of this template is available at:
@@ -42,16 +41,16 @@ A live deployment of this template is available at:
 
 ## Development
 
-Install dependencies:
+Install dependencies with pnpm:
 
 ```bash
-npm install
+pnpm install
 ```
 
 Start the development server with:
 
 ```bash
-npm run dev
+pnpm run dev
 ```
 
 Your application will be available at [http://localhost:5173](http://localhost:5173).
@@ -61,25 +60,43 @@ Your application will be available at [http://localhost:5173](http://localhost:5
 Build your project for production:
 
 ```bash
-npm run build
+pnpm run build
 ```
 
 Preview your build locally:
 
 ```bash
-npm run preview
+pnpm run preview
+```
+
+Generate Cloudflare Worker types:
+
+```bash
+pnpm run cf-typegen
+```
+
+Run the project checks, including a Wrangler dry run:
+
+```bash
+pnpm run check
+```
+
+Lint the project:
+
+```bash
+pnpm run lint
 ```
 
 Deploy your project to Cloudflare Workers:
 
 ```bash
-npm run build && npm run deploy
+pnpm run deploy
 ```
 
 Monitor your workers:
 
 ```bash
-npx wrangler tail
+pnpm exec wrangler tail
 ```
 
 ## Additional Resources
