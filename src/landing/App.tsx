@@ -1,4 +1,5 @@
 import './index.css';
+import { Seo } from './components/Seo';
 
 export function App() {
     return (
@@ -9,3 +10,10 @@ export function App() {
         </main>
     );
 }
+
+export const DocumentHead = () => (
+    <Seo
+        title="Instituto Fibonacci — Turnos"
+        description="Sistema de reserva de turnos del Instituto Fibonacci."
+    />
+);

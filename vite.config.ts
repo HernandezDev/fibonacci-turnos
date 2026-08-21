@@ -12,7 +12,6 @@ export default defineConfig({
       entryClient: "src/landing/main.tsx",
       outDir: "dist/landing",
       publicPath: "/landing",
-      title: "Instituto Fibonacci — Turnos",
     }),
   ],
 });

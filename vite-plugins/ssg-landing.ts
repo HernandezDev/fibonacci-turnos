@@ -11,7 +11,6 @@ export interface SsgLandingOptions {
   entryClient: string;
   outDir: string;
   publicPath: string;
-  title: string;
 }
 
 function normalizeOutputs(
@@ -68,6 +67,8 @@ export function ssgLandingPlugin(options: SsgLandingOptions): Plugin {
 
           const mod = await landingEnv.runner.import(entryServerPath);
           const appHtml = renderToString(mod.App());
+          const headHtml =
+            typeof mod.DocumentHead === "function" ? renderToString(mod.DocumentHead()) : "";
 
           const html = await server.transformIndexHtml(
             req.url,
@@ -76,7 +77,7 @@ export function ssgLandingPlugin(options: SsgLandingOptions): Plugin {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>${options.title}</title>
+  ${headHtml}
 </head>
 <body>
   <div id="root">${appHtml}</div>
@@ -117,8 +118,18 @@ export function ssgLandingPlugin(options: SsgLandingOptions): Plugin {
         if (!entryFile) throw new Error("[ssg-landing] no se encontró el bundle SSR");
 
         const modulePath = pathToFileURL(path.join(tmpDir, entryFile)).href;
-        const { App } = await import(`${modulePath}?t=${Date.now()}`);
+        type LandingModule = {
+          App: () => React.JSX.Element;
+          DocumentHead?: () => React.JSX.Element;
+        };
+
+        const { App, DocumentHead } =
+          (await import(/* @vite-ignore */ `${modulePath}?t=${Date.now()}`)) as LandingModule;
         const html = renderToString(App());
+        const headHtml =
+          typeof DocumentHead === "function"
+            ? renderToString(DocumentHead())
+            : "";
 
         writeFileSync(
           path.join(outDir, "index.html"),
@@ -127,7 +138,7 @@ export function ssgLandingPlugin(options: SsgLandingOptions): Plugin {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>${options.title}</title>
+  ${headHtml}
   ${cssLinks}
 </head>
 <body>
