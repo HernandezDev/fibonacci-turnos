@@ -27,7 +27,7 @@
 		"prepare": "pnpm run cf-typegen",
 		"cf-typegen": "wrangler types",
 		"dev": "vite",
-		"build": "tsc -b && vite build",
+		"build": "tsc -b && vite build && cp -r dist/landing dist/client/landing",
 		"check": "tsc -b && vite build && pnpm exec wrangler deploy --dry-run",
 		"deploy": "pnpm run build && pnpm exec wrangler deploy",
 		"lint": "eslint .",
