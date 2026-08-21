@@ -5,6 +5,8 @@ import { readdirSync, writeFileSync, rmSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import { renderToString } from "react-dom/server";
 
+const APP_PATH = path.resolve(process.cwd(), "src/landing/App.tsx");
+
 export function ssgLandingPlugin(): Plugin {
   return {
     name: "ssg-landing",
@@ -63,6 +65,36 @@ export function ssgLandingPlugin(): Plugin {
       );
 
       rmSync(tmpDir, { recursive: true, force: true });
+    },
+    configureServer(server) {
+      server.middlewares.use(async (req, res, next) => {
+        if (!req.url || !req.url.startsWith("/landing")) return next();
+
+        try {
+          const mod = await server.ssrLoadModule(APP_PATH);
+          const appHtml = renderToString(mod.App());
+          const html = await server.transformIndexHtml(
+            req.url,
+            `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Instituto Fibonacci — Turnos</title>
+</head>
+<body>
+  <div id="root">${appHtml}</div>
+  <script type="module" src="/src/landing/main.tsx"></script>
+</body>
+</html>`,
+          );
+
+          res.setHeader("Content-Type", "text/html");
+          res.end(html);
+        } catch (error) {
+          next(error);
+        }
+      });
     },
   };
 }
