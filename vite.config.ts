@@ -4,5 +4,15 @@ import { cloudflare } from "@cloudflare/vite-plugin";
 import { ssgLandingPlugin } from "./vite-plugins/ssg-landing.ts";
 
 export default defineConfig({
-	plugins: [react(), cloudflare(), ssgLandingPlugin()],
+  plugins: [
+    react(),
+    cloudflare(),
+    ssgLandingPlugin({
+      entryServer: "src/landing/App.tsx",
+      entryClient: "src/landing/main.tsx",
+      outDir: "dist/landing",
+      publicPath: "/landing",
+      title: "Instituto Fibonacci — Turnos",
+    }),
+  ],
 });

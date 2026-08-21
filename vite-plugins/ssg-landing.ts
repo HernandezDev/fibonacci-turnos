@@ -1,31 +1,52 @@
 // vite-plugins/ssg-landing.ts
-import type { Plugin } from "vite";
+import type { Plugin, Rollup } from "vite";
+import { isRunnableDevEnvironment } from "vite";
 import path from "node:path";
 import { readdirSync, writeFileSync, rmSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import { renderToString } from "react-dom/server";
 
-const APP_PATH = path.resolve(process.cwd(), "src/landing/App.tsx");
+export interface SsgLandingOptions {
+  entryServer: string;
+  entryClient: string;
+  outDir: string;
+  publicPath: string;
+  title: string;
+}
 
-export function ssgLandingPlugin(): Plugin {
+function normalizeOutputs(
+  result: Rollup.RolldownOutput | Rollup.RolldownOutput[]
+): (Rollup.OutputChunk | Rollup.OutputAsset)[] {
+  const outputs = Array.isArray(result) ? result : [result];
+  return outputs.flatMap((o) => o.output);
+}
+
+export function ssgLandingPlugin(options: SsgLandingOptions): Plugin {
+  const root = process.cwd();
+  const entryServerPath = path.resolve(root, options.entryServer);
+  const entryClientPath = path.resolve(root, options.entryClient);
+  const outDir = path.resolve(root, options.outDir);
+  const tmpDir = path.resolve(root, ".ssg-landing-tmp");
+
   return {
     name: "ssg-landing",
+
     config() {
       return {
         environments: {
           landing: {
+            consumer: "server",
             build: {
-              outDir: "dist/.landing-tmp",
-              rollupOptions: {
-                input: path.resolve(process.cwd(), "src/landing/App.tsx"),
-              },
+              outDir: path.relative(root, tmpDir),
+              rollupOptions: { input: entryServerPath },
             },
           },
           landingClient: {
+            consumer: "client",
             build: {
-              outDir: "dist/landing",
+              outDir: path.relative(root, outDir),
               rollupOptions: {
-                input: path.resolve(process.cwd(), "src/landing/main.tsx"),
+                input: entryClientPath,
                 output: { entryFileNames: "client.js" },
               },
             },
@@ -33,46 +54,20 @@ export function ssgLandingPlugin(): Plugin {
         },
       };
     },
-    async buildApp(builder) {
-      await Promise.all([
-        builder.build(builder.environments.landing),
-        builder.build(builder.environments.landingClient),
-      ]);
 
-      const tmpDir = path.resolve(process.cwd(), "dist/.landing-tmp");
-      const entryFile = readdirSync(tmpDir).find((f) => f.endsWith(".js"));
-      if (!entryFile) throw new Error("[ssg-landing] no se encontró el bundle SSR");
-
-      const modulePath = pathToFileURL(path.join(tmpDir, entryFile)).href;
-      const { App } = await import(`${modulePath}?t=${Date.now()}`);
-      const html = renderToString(App());
-
-      const outDir = path.resolve(process.cwd(), "dist/landing");
-      writeFileSync(
-        path.join(outDir, "index.html"),
-        `<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Instituto Fibonacci — Turnos</title>
-</head>
-<body>
-  <div id="root">${html}</div>
-  <script type="module" src="/landing/client.js"></script>
-</body>
-</html>`
-      );
-
-      rmSync(tmpDir, { recursive: true, force: true });
-    },
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
-        if (!req.url || !req.url.startsWith("/landing")) return next();
+        if (!req.url || !req.url.startsWith(options.publicPath)) return next();
 
         try {
-          const mod = await server.ssrLoadModule(APP_PATH);
+          const landingEnv = server.environments.landing;
+          if (!isRunnableDevEnvironment(landingEnv)) {
+            throw new Error("[ssg-landing] el entorno 'landing' no es ejecutable en este contexto");
+          }
+
+          const mod = await landingEnv.runner.import(entryServerPath);
           const appHtml = renderToString(mod.App());
+
           const html = await server.transformIndexHtml(
             req.url,
             `<!DOCTYPE html>
@@ -80,21 +75,64 @@ export function ssgLandingPlugin(): Plugin {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Instituto Fibonacci — Turnos</title>
+  <title>${options.title}</title>
 </head>
 <body>
   <div id="root">${appHtml}</div>
-  <script type="module" src="/src/landing/main.tsx"></script>
+  <script type="module" src="/${path.relative(root, entryClientPath)}"></script>
 </body>
-</html>`,
+</html>`
           );
 
           res.setHeader("Content-Type", "text/html");
           res.end(html);
-        } catch (error) {
-          next(error);
+        } catch (e) {
+          next(e);
         }
       });
+    },
+
+    async buildApp(builder) {
+      const [, clientResult] = await Promise.all([
+        builder.build(builder.environments.landing),
+        builder.build(builder.environments.landingClient),
+      ]);
+
+      // builder.build() puede devolver un Watcher en modo watch — acá no aplica, se descarta el tipo
+      const clientOutputs = normalizeOutputs(
+        clientResult as Rollup.RolldownOutput | Rollup.RolldownOutput[]
+      );
+
+      const cssLinks = clientOutputs
+        .filter((chunk) => chunk.type === "asset" && chunk.fileName.endsWith(".css"))
+        .map((chunk) => `<link rel="stylesheet" href="${options.publicPath}/${chunk.fileName}" />`)
+        .join("\n  ");
+
+      const entryFile = readdirSync(tmpDir).find((f) => f.endsWith(".js"));
+      if (!entryFile) throw new Error("[ssg-landing] no se encontró el bundle SSR");
+
+      const modulePath = pathToFileURL(path.join(tmpDir, entryFile)).href;
+      const { App } = await import(`${modulePath}?t=${Date.now()}`);
+      const html = renderToString(App());
+
+      writeFileSync(
+        path.join(outDir, "index.html"),
+        `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${options.title}</title>
+  ${cssLinks}
+</head>
+<body>
+  <div id="root">${html}</div>
+  <script type="module" src="${options.publicPath}/client.js"></script>
+</body>
+</html>`
+      );
+
+      rmSync(tmpDir, { recursive: true, force: true });
     },
   };
 }
