@@ -110,7 +110,7 @@ export function ssgLandingPlugin(options: SsgLandingOptions): Plugin {
 
       const cssLinks = clientOutputs
         .filter((chunk) => chunk.type === "asset" && chunk.fileName.endsWith(".css"))
-        .map((chunk) => `<link rel="stylesheet" href="${options.publicPath}/${chunk.fileName}" />`)
+        .map((chunk) => `<link rel="stylesheet" href="./${chunk.fileName}" />`)
         .join("\n  ");
 
       try {
@@ -143,7 +143,7 @@ export function ssgLandingPlugin(options: SsgLandingOptions): Plugin {
 </head>
 <body>
   <div id="root">${html}</div>
-  <script type="module" src="${options.publicPath}/client.js"></script>
+  <script type="module" src="./client.js"></script>
 </body>
 </html>`
         );
