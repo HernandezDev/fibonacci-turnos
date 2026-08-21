@@ -37,6 +37,7 @@ export function ssgLandingPlugin(options: SsgLandingOptions): Plugin {
           landing: {
             consumer: "server",
             build: {
+              ssr: true,
               outDir: path.relative(root, tmpDir),
               rollupOptions: { input: entryServerPath },
             },
@@ -87,6 +88,9 @@ export function ssgLandingPlugin(options: SsgLandingOptions): Plugin {
           res.setHeader("Content-Type", "text/html");
           res.end(html);
         } catch (e) {
+          if (e instanceof Error) {
+            server.ssrFixStacktrace(e);
+          }
           next(e);
         }
       });
@@ -108,16 +112,17 @@ export function ssgLandingPlugin(options: SsgLandingOptions): Plugin {
         .map((chunk) => `<link rel="stylesheet" href="${options.publicPath}/${chunk.fileName}" />`)
         .join("\n  ");
 
-      const entryFile = readdirSync(tmpDir).find((f) => f.endsWith(".js"));
-      if (!entryFile) throw new Error("[ssg-landing] no se encontró el bundle SSR");
+      try {
+        const entryFile = readdirSync(tmpDir).find((f) => f.endsWith(".js"));
+        if (!entryFile) throw new Error("[ssg-landing] no se encontró el bundle SSR");
 
-      const modulePath = pathToFileURL(path.join(tmpDir, entryFile)).href;
-      const { App } = await import(`${modulePath}?t=${Date.now()}`);
-      const html = renderToString(App());
+        const modulePath = pathToFileURL(path.join(tmpDir, entryFile)).href;
+        const { App } = await import(`${modulePath}?t=${Date.now()}`);
+        const html = renderToString(App());
 
-      writeFileSync(
-        path.join(outDir, "index.html"),
-        `<!DOCTYPE html>
+        writeFileSync(
+          path.join(outDir, "index.html"),
+          `<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
@@ -130,9 +135,10 @@ export function ssgLandingPlugin(options: SsgLandingOptions): Plugin {
   <script type="module" src="${options.publicPath}/client.js"></script>
 </body>
 </html>`
-      );
-
-      rmSync(tmpDir, { recursive: true, force: true });
+        );
+      } finally {
+        rmSync(tmpDir, { recursive: true, force: true });
+      }
     },
   };
 }
