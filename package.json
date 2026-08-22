@@ -2,9 +2,11 @@
 	"name": "fibonacci-turnos",
 	"description": "applicacion para instituto de clases particulares",
 	"dependencies": {
+		"@tailwindcss/vite": "^4.3.3",
 		"hono": "4.11.1",
 		"react": "19.2.1",
-		"react-dom": "19.2.1"
+		"react-dom": "19.2.1",
+		"tailwindcss": "^4.3.3"
 	},
 	"devDependencies": {
 		"@cloudflare/vite-plugin": "1.53.0",
@@ -27,7 +29,7 @@
 		"prepare": "pnpm run cf-typegen",
 		"cf-typegen": "wrangler types",
 		"dev": "vite",
-		"build": "tsc -b && vite build",
+		"build": "tsc -b && vite build && cp -r dist/landing dist/client/landing",
 		"check": "tsc -b && vite build && pnpm exec wrangler deploy --dry-run",
 		"deploy": "pnpm run build && pnpm exec wrangler deploy",
 		"lint": "eslint .",
