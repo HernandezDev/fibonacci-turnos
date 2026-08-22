@@ -36,7 +36,6 @@ export function ssgLandingPlugin(options: SsgLandingOptions): Plugin {
           landing: {
             consumer: "server",
             build: {
-              ssr: true,
               outDir: path.relative(root, tmpDir),
               rollupOptions: { input: entryServerPath },
             },
